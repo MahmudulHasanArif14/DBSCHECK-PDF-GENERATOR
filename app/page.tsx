@@ -1,69 +1,50 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { ArrowLeft, ArrowRight, Check, Download, FileText, Plus, Printer, Save, Trash2, Upload, UserRound } from "lucide-react";
+import { pdf } from "@react-pdf/renderer";
+import { EmployeeData, Experience, FamilyMember, PdfDocument } from "@/components/PdfDocument";
+
+const steps = ["Personal", "Employment", "Family", "DBS & consent", "Review"];
+const blankExperience: Experience = { startDate: "", endDate: "", employer: "", position: "", reason: "" };
+const blankFamily: FamilyMember = { name: "", relationship: "", department: "" };
+const initialData: EmployeeData = { fullName: "", gender: "", dateOfBirth: "", nationality: "", maritalStatus: "", healthStatus: "", contactNumber: "", email: "", job: "", hobby: "", idNumber: "", address: "", postcode: "", emergencyName: "", emergencyNumber: "", photo: "", experiences: [{ ...blankExperience }], hasFamily: "no", familyMembers: [{ ...blankFamily }], dbsRequired: "Yes", dbsCompleted: "No", certificateNumber: "", dbsDate: "", dbsNotes: "", additionalInfo: "", consent: false, declarationName: "", signature: "", declarationDate: new Date().toISOString().slice(0, 10) };
+
+function Field({ label, value, onChange, required, type = "text", placeholder = "" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string }) {
+  return <label className="field"><span>{label} {required && <b>*</b>}</span><input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required} /></label>;
+}
+function SelectField({ label, value, onChange, options, required }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean }) {
+  return <label className="field"><span>{label} {required && <b>*</b>}</span><select value={value} onChange={(e) => onChange(e.target.value)} required={required}><option value="">Select...</option>{options.map((option) => <option key={option}>{option}</option>)}</select></label>;
+}
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+  const [step, setStep] = useState(0);
+  const [data, setData] = useState<EmployeeData>(initialData);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const employeeNumber = useMemo(() => `WC-${new Date().getFullYear()}-0001`, []);
+  useEffect(() => { const draft = localStorage.getItem("western-cars-draft"); if (draft) setTimeout(() => setData(JSON.parse(draft)), 0); }, []);
+  const set = (name: keyof EmployeeData, value: string | boolean) => setData((current) => ({ ...current, [name]: value }));
+  const updateExperience = (index: number, name: keyof Experience, value: string) => setData((current) => ({ ...current, experiences: current.experiences.map((item, i) => i === index ? { ...item, [name]: value } : item) }));
+  const updateFamily = (index: number, name: keyof FamilyMember, value: string) => setData((current) => ({ ...current, familyMembers: current.familyMembers.map((item, i) => i === index ? { ...item, [name]: value } : item) }));
+  const saveDraft = () => { localStorage.setItem("western-cars-draft", JSON.stringify(data)); setSaved(true); setTimeout(() => setSaved(false), 2200); };
+  const next = () => { if (step === 0 && (!data.fullName || !data.nationality || !data.contactNumber || !data.job)) return setError("Please complete all required personal information."); if (step === 3 && !data.consent) return setError("Please confirm the data protection consent before continuing."); setError(""); setStep((value) => Math.min(value + 1, 4)); };
+  const uploadPhoto = (file?: File) => { if (!file) return; const reader = new FileReader(); reader.onload = () => set("photo", String(reader.result)); reader.readAsDataURL(file); };
+  const downloadPdf = async () => { const blob = await pdf(<PdfDocument data={data} employeeNumber={employeeNumber} />).toBlob(); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `${data.fullName.replace(/\s+/g, "-") || "employee-registration"}.pdf`; link.click(); URL.revokeObjectURL(url); };
+  const personal = [["Full name", "fullName", "text", true], ["Date of birth", "dateOfBirth", "date", false], ["Nationality", "nationality", "text", true], ["Contact number", "contactNumber", "tel", true], ["Email address", "email", "email", false], ["Apply for job", "job", "text", true], ["Hobby", "hobby", "text", false], ["ID number", "idNumber", "text", false], ["Postcode", "postcode", "text", false], ["Home address", "address", "text", false], ["Emergency contact name", "emergencyName", "text", false], ["Emergency contact number", "emergencyNumber", "tel", false]] as const;
+
+  return <main className="shell">
+    <header className="topbar"><div className="brand"><Image className="brand-logo" src="/logo.png" alt="Western Cars logo" width={42} height={42} /><div><strong>WESTERN CARS</strong><small>People & culture</small></div></div><button className="save-button" onClick={saveDraft}><Save size={16} /> {saved ? "Draft saved" : "Save draft"}</button></header>
+    <section className="hero"><div><p className="eyebrow">NEW STARTER REGISTRATION</p><h1>Employee registration</h1><p>Complete the form below to create your official employee registration document.</p></div><div className="hero-icon"><UserRound size={28} /></div></section>
+    <div className="progress">{steps.map((label, index) => <div className={`progress-step ${index === step ? "active" : ""} ${index < step ? "done" : ""}`} key={label}><div className="progress-dot">{index < step ? <Check size={14} /> : index + 1}</div><span>{label}</span></div>)}</div>
+    <section className="card"><div className="card-heading"><div><p className="eyebrow">STEP {step + 1} OF 5</p><h2>{steps[step]} information</h2></div><span className="required-note"><b>*</b> Required</span></div>{error && <div className="error">{error}</div>}
+      {step === 0 && <div className="form-grid"><div className="photo-field"><div className="photo-preview">{data.photo ? <Image src={data.photo} alt="Employee preview" width={125} height={152} unoptimized /> : <UserRound size={30} />}</div><label className="upload-button"><Upload size={15} /> Upload photo<input type="file" accept="image/*" onChange={(e) => uploadPhoto(e.target.files?.[0])} /></label><small>JPG or PNG, max 5MB</small></div><div className="form-grid personal-fields">{personal.map(([label, name, type, required]) => <Field key={name} label={label} value={data[name]} onChange={(value) => set(name, value)} type={type} required={required} />)}<SelectField label="Gender" value={data.gender} onChange={(value) => set("gender", value)} options={["Female", "Male", "Prefer not to say"]} /><SelectField label="Marital status" value={data.maritalStatus} onChange={(value) => set("maritalStatus", value)} options={["Single", "Married", "Civil partnership", "Prefer not to say"]} /><Field label="Health status" value={data.healthStatus} onChange={(value) => set("healthStatus", value)} /></div></div>}
+      {step === 1 && <div><div className="section-intro"><div><h3>Previous employment</h3><p>Add your most recent roles, starting with your current or latest employer.</p></div><button className="outline-button" onClick={() => setData((d) => ({ ...d, experiences: [...d.experiences, { ...blankExperience }] }))}><Plus size={16} /> Add experience</button></div>{data.experiences.map((item, index) => <div className="repeat-card" key={index}><div className="repeat-title"><strong>Employment {index + 1}</strong>{data.experiences.length > 1 && <button className="icon-button" onClick={() => setData((d) => ({ ...d, experiences: d.experiences.filter((_, i) => i !== index) }))}><Trash2 size={15} /></button>}</div><div className="form-grid four"><Field label="Start date" value={item.startDate} onChange={(v) => updateExperience(index, "startDate", v)} type="date" /><Field label="End date" value={item.endDate} onChange={(v) => updateExperience(index, "endDate", v)} type="date" /><Field label="Employer" value={item.employer} onChange={(v) => updateExperience(index, "employer", v)} /><Field label="Job / position" value={item.position} onChange={(v) => updateExperience(index, "position", v)} /><Field label="Reason for leaving" value={item.reason} onChange={(v) => updateExperience(index, "reason", v)} /></div></div>)}</div>}
+      {step === 2 && <div><div className="question-card"><h3>Do you have any family members working at Western Cars?</h3><div className="radio-row">{["yes", "no"].map((answer) => <label className={`radio-option ${data.hasFamily === answer ? "selected" : ""}`} key={answer}><input type="radio" checked={data.hasFamily === answer} onChange={() => set("hasFamily", answer)} />{answer === "yes" ? "Yes" : "No"}</label>)}</div></div>{data.hasFamily === "yes" && <><div className="section-intro"><div><h3>Family members</h3><p>Tell us about anyone you are related to at Western Cars.</p></div><button className="outline-button" onClick={() => setData((d) => ({ ...d, familyMembers: [...d.familyMembers, { ...blankFamily }] }))}><Plus size={16} /> Add family member</button></div>{data.familyMembers.map((item, index) => <div className="repeat-card" key={index}><strong>Family member {index + 1}</strong><div className="form-grid three"><Field label="Name" value={item.name} onChange={(v) => updateFamily(index, "name", v)} /><Field label="Relationship" value={item.relationship} onChange={(v) => updateFamily(index, "relationship", v)} /><Field label="Department / role" value={item.department} onChange={(v) => updateFamily(index, "department", v)} /></div></div>)}</>}</div>}
+      {step === 3 && <div className="stack"><div className="form-grid three"><SelectField label="DBS check required" value={data.dbsRequired} onChange={(v) => set("dbsRequired", v)} options={["Yes", "No"]} /><SelectField label="DBS check completed" value={data.dbsCompleted} onChange={(v) => set("dbsCompleted", v)} options={["Yes", "No", "Pending"]} /><Field label="Certificate number" value={data.certificateNumber} onChange={(v) => set("certificateNumber", v)} /><Field label="Date completed" value={data.dbsDate} onChange={(v) => set("dbsDate", v)} type="date" /></div><label className="field"><span>DBS notes</span><textarea value={data.dbsNotes} onChange={(e) => set("dbsNotes", e.target.value)} rows={4} /></label><label className="field"><span>Additional information</span><textarea value={data.additionalInfo} onChange={(e) => set("additionalInfo", e.target.value)} rows={4} /></label><label className="consent"><input type="checkbox" checked={data.consent} onChange={(e) => set("consent", e.target.checked)} /><span>I confirm the information I have provided is accurate and consent to Western Cars processing it for recruitment and employment administration purposes. <b>*</b></span></label></div>}
+      {step === 4 && <div><div className="review-banner"><Check size={20} /><div><strong>Your form is ready to review</strong><p>Check the summary below, then complete the declaration to generate your PDF.</p></div></div><div className="review-grid">{[["Full name", data.fullName], ["Applying for", data.job], ["Contact", data.contactNumber], ["Nationality", data.nationality]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value || "Not provided"}</strong></div>)}</div><div className="declaration"><h3>Employee declaration</h3><div className="form-grid three"><Field label="Employee name" value={data.declarationName} onChange={(v) => set("declarationName", v)} required placeholder={data.fullName} /><Field label="Signature (type full name)" value={data.signature} onChange={(v) => set("signature", v)} required /><Field label="Date" value={data.declarationDate} onChange={(v) => set("declarationDate", v)} required type="date" /></div></div></div>}
+      <div className="actions">{step > 0 ? <button className="back-button" onClick={() => { setError(""); setStep(step - 1); }}><ArrowLeft size={16} /> Back</button> : <span />}{step === 4 ? <div className="action-group"><button className="outline-button" onClick={() => window.print()}><Printer size={16} /> Print</button><button className="primary-button" onClick={downloadPdf}><Download size={16} /> Download PDF</button></div> : <button className="primary-button" onClick={next}>Save & continue <ArrowRight size={16} /></button>}</div>
+    </section><footer><FileText size={15} /> Your information is saved securely in this browser when you choose “Save draft”.</footer>
+  </main>;
 }
